@@ -3,3 +3,9 @@ __pycache__/
 .env
 .venv
 venv/
+.openclaw/
+.clawhub/
+memory/
+skills/
+training-module-creator/
+url_analyzer/
