@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SevinHub SOC Lab Frontend Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #1a1a1a; color: #e0e0e0; }
+        .header { background-color: #007bff; padding: 15px 20px; text-align: center; color: white; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 20px; border: 1px solid #333; border-radius: 8px; background-color: #2a2a2a; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        h1, h2, h3 { color: #f0f0f0; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        form div { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #d0d0d0; }
+        input[type="text"], input[type="datetime-local"], select, textarea {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background-color: #3a3a3a;
+            color: #e0e0e0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre { background-color: #3a3a3a; padding: 10px; border-radius: 4px; overflow-x: auto; color: #e0e0e0; border: 1px solid #555; }
+        .response-container { margin-top: 30px; border-top: 1px solid #444; padding-top: 20px; }
+
+        /* Live Logs Specific Styles */
+        #liveLogsContainer {
+            max-height: 600px; /* Limit height */
+            overflow-y: scroll; /* Enable scrolling */
+            background-color: #1f1f1f;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+        .log-entry {
+            background-color: #282828;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-left: 5px solid;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        .log-level-INFO { border-left-color: #007bff; } /* Blue */
+        .log-level-WARNING { border-left-color: #ffc107; color: #ffc107; } /* Yellow */
+        .log-level-ERROR { border-left-color: #dc3545; color: #dc3545; } /* Red */
+        .log-level-CRITICAL { border-left-color: #6f42c1; color: #6f42c1; animation: flashRed 1s infinite alternate; } /* Purple with flash */
+
+        @keyframes flashRed {
+            from { background-color: #dc3545; }
+            to { background-color: #4a1a1a; }
+        }
+
+        /* Alert Banner */
+        #alertBanner {
+            background-color: #4a1a1a; /* Dark red background for critical alerts */
+            color: white;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+            display: none; /* Hidden by default */
+            animation: flashBackground 1s infinite alternate; /* Flashing effect */
+        }
+
+        @keyframes flashBackground {
+            from { background-color: #dc3545; }
+            to { background-color: #4a1a1a; }
+        }
+
+        #alertBanner.warning { background-color: #ffc107; color: #333; animation: none; }
+
+        .alert-icon { margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SevinHub SOC Lab Dashboard</h1>
+    </div>
+    
+    <div class="container">
+        <div id="alertBanner">
+            <span id="alertIcon" class="alert-icon"></span>
+            <span id="alertMessage"></span>
+        </div>
+
+        <p>This interactive dashboard allows you to ingest data and view live logs.</p>
+
+        <h2>Ingest Log Entry</h2>
+        <form id="logIngestionForm">
+            <div>
+                <label for="logTimestamp">Timestamp:</label>
+                <input type="datetime-local" id="logTimestamp" name="timestamp" required>
+            </div>
+            <div>
+                <label for="logSource">Source:</label>
+                <input type="text" id="logSource" name="source" value="frontend-ui" required>
+            </div>
+            <div>
+                <label for="logLevel">Level:</label>
+                <select id="logLevel" name="level" required>
+                    <option value="INFO">INFO</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                </select>
+            </div>
+            <div>
+                <label for="logMessage">Message:</label>
+                <textarea id="logMessage" name="message" rows="4" required></textarea>
+            </div>
+            <button type="submit">Submit Log</button>
+        </form>
+
+        <div class="response-container">
+            <h3>Backend Response (Log Ingestion)</h3>
+            <pre id="logResponse"></pre>
+        </div>
+
+        <div class="response-container">
+            <h2>Live Logs</h2>
+            <div id="liveLogsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const backendUrl = 'http://127.0.0.1:8000';
+        const alertBanner = document.getElementById('alertBanner');
+        const alertIcon = document.getElementById('alertIcon');
+        const alertMessage = document.getElementById('alertMessage');
+
+        let currentAlertTimeout = null;
+
+        function showAlert(level, message) {
+            clearTimeout(currentAlertTimeout);
+            alertBanner.style.display = 'block';
+            alertBanner.classList.remove('warning'); // Clear previous warning class
+
+            if (level === 'CRITICAL') {
+                alertBanner.style.backgroundColor = '#dc3545'; // Ensure red
+                alertIcon.textContent = '🚨';
+                alertMessage.textContent = `CRITICAL ALERT: ${message}`;
+                alertBanner.classList.add('flash');
+            } else if (level === 'ERROR') {
+                alertBanner.style.backgroundColor = '#dc3545'; // Red
+                alertIcon.textContent = '⚠️';
+                alertMessage.textContent = `ERROR DETECTED: ${message}`;
+                alertBanner.classList.remove('flash');
+            } else if (level === 'WARNING') {
+                alertBanner.style.backgroundColor = '#ffc107'; // Yellow
+                alertBanner.classList.add('warning');
+                alertIcon.textContent = '🔔';
+                alertMessage.textContent = `WARNING: ${message}`;
+                alertBanner.classList.remove('flash');
+            }
+            currentAlertTimeout = setTimeout(hideAlert, 10000); // Hide after 10 seconds
+        }
+
+        function hideAlert() {
+            alertBanner.style.display = 'none';
+            alertBanner.classList.remove('flash');
+        }
+
+        // Function to set current time for datetime-local input
+        function setDefaultTimestamp() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('logTimestamp').value = now.toISOString().slice(0, 16);
+        }
+
+        // Function to fetch and display logs
+        async function fetchAndDisplayLogs() {
+            try {
+                const response = await fetch(`${backendUrl}/logs`);
+                const logs = await response.json();
+                const liveLogsContainer = document.getElementById('liveLogsContainer');
+                liveLogsContainer.innerHTML = ''; // Clear existing logs
+
+                let latestCriticalOrError = null;
+
+                // Display logs in reverse order (latest first)
+                logs.slice().reverse().forEach(log => {
+                    const logEntryDiv = document.createElement('div');
+                    logEntryDiv.classList.add('log-entry');
+                    logEntryDiv.classList.add(`log-level-${log.level}`);
+                    
+                    const timestamp = new Date(log.timestamp).toLocaleString();
+
+                    logEntryDiv.innerHTML = `
+                        <div class="log-timestamp">${timestamp}</div>
+                        <div class="log-source">Source: ${log.source}</div>
+                        <div class="log-level">Level: ${log.level}</div>
+                        <div class="log-message">${log.message}</div>
+                    `;
+                    liveLogsContainer.appendChild(logEntryDiv);
+
+                    // Check for latest critical or error log for the banner
+                    if ((log.level === 'CRITICAL' || log.level === 'ERROR') && !latestCriticalOrError) {
+                        latestCriticalOrError = log;
+                    }
+                    if (log.level === 'WARNING' && !latestCriticalOrError && !alertBanner.style.display == 'block'){
+                        // Only show warning if no critical/error is active
+                        latestCriticalOrError = log; // Use for banner but don't override higher priority
+                    }
+                });
+
+                // Update alert banner if a new critical/error/warning log is found
+                if (latestCriticalOrError) {
+                    showAlert(latestCriticalOrError.level, latestCriticalOrError.message);
+                }
+
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+                document.getElementById('liveLogsContainer').innerHTML = `<div style="color: red;">Error loading logs: ${error.message}</div>`;
+            }
+        }
+
+        // Event listener for log ingestion form
+        document.getElementById('logIngestionForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const timestamp = document.getElementById('logTimestamp').value;
+            const source = document.getElementById('logSource').value;
+            const level = document.getElementById('logLevel').value;
+            const message = document.getElementById('logMessage').value;
+
+            const formattedTimestamp = new Date(timestamp).toISOString();
+
+            const logData = {
+                timestamp: formattedTimestamp,
+                source: source,
+                level: level,
+                message: message
+            };
+
+            try {
+                const response = await fetch(`${backendUrl}/ingest/log`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(logData)
+                });
+                const result = await response.json();
+                document.getElementById('logResponse').textContent = JSON.stringify(result, null, 2);
+                fetchAndDisplayLogs(); // Refresh logs after ingestion
+            } catch (error) {
+                document.getElementById('logResponse').textContent = 'Error: ' + error.message;
+                console.error('Error:', error);
+            }
+        });
+
+        // Initial setup on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            setDefaultTimestamp();
+            fetchAndDisplayLogs(); // Fetch logs immediately on load
+            setInterval(fetchAndDisplayLogs, 3000); // Auto-refresh every 3 seconds
+        });
+    </script>
+</body>
+</html>

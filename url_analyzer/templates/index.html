@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Security Analyzer - SevinHub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>URL Security Analyzer</h1>
+        <form id="analyze-form" action="/analyze" method="post">
+            <input type="text" name="url_input" placeholder="Enter URL (e.g., https://example.com)" required>
+            <button type="submit">Analyze</button>
+        </form>
+
+        <div id="loading-indicator" class="hidden">
+            <div class="spinner"></div>
+            <p>Analyzing...</p>
+        </div>
+
+        {% if results %}
+        <div class="results-dashboard">
+            <h2>Analysis Results for: {{ results.url }}</h2>
+            
+            <p class="risk-score-display">
+                <strong>Risk Score:</strong> 
+                <span class="risk-{{ (results.risk_score // 25) * 25 if results.risk_score else 0 }}">
+                    {{ results.risk_score }}
+                </span> / 100
+            </p>
+
+            <p><strong>HTTPS Used:</strong> <span class="{{ 'secure' if results.https_used else 'insecure' }}">{{ 'Yes' if results.https_used else 'No' }}</span></p>
+            <p><strong>Domain:</strong> {{ results.domain if results.domain else 'N/A' }}</p>
+            <p><strong>IP Address:</strong> {{ results.ip_address if results.ip_address else 'N/A' }}</p>
+
+            {% if results.ip_geolocation.country or results.ip_geolocation.isp or results.ip_geolocation.hosting %}
+            <h3>IP Geolocation:</h3>
+            <p><strong>Country:</strong> {{ results.ip_geolocation.country if results.ip_geolocation.country else 'N/A' }}</p>
+            <p><strong>ISP:</strong> {{ results.ip_geolocation.isp if results.ip_geolocation.isp else 'N/A' }}</p>
+            <p><strong>Hosting Provider:</strong> {{ results.ip_geolocation.hosting if results.ip_geolocation.hosting else 'N/A' }}</p>
+            {% endif %}
+
+            {% if results.whois_info.creation_date or results.whois_info.domain_age_days is not none or results.whois_info.registrar %}
+            <h3>WHOIS Information:</h3>
+            <p><strong>Creation Date:</strong> {{ results.whois_info.creation_date if results.whois_info.creation_date else 'N/A' }}</p>
+            <p><strong>Domain Age:</strong>
+                {% if results.whois_info.domain_age_days is not none %}
+                    {{ results.whois_info.domain_age_days }} days
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+            <p><strong>Registrar:</strong> {{ results.whois_info.registrar if results.whois_info.registrar else 'N/A' }}</p>
+            {% endif %}
+
+            {% if results.https_used and results.ssl_info.issuer %}
+            <h3>SSL Certificate Information:</h3>
+            <p><strong>Issuer:</strong> {{ results.ssl_info.issuer if results.ssl_info.issuer else 'N/A' }}</p>
+            <p><strong>Expiration Date:</strong> {{ results.ssl_info.expiration_date if results.ssl_info.expiration_date else 'N/A' }}</p>
+            <p><strong>Days Until Expiration:</strong>
+                {% if results.ssl_info.days_until_expiration is not none %}
+                    {{ results.ssl_info.days_until_expiration }} days
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+            {% endif %}
+
+            <h3>DNS Records:</h3>
+            <ul>
+                {% for record_type, records in results.dns_records.items() %}
+                    <li><strong>{{ record_type }}:</strong> {{ records | join(', ') if records else 'N/A' }}</li>
+                {% endfor %}
+            </ul>
+
+            {% if results.security_hints %}
+            <h3>Security Hints:</h3>
+            <ul class="hints">
+                {% for hint in results.security_hints %}
+                    <li>⚠️ {{ hint }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.getElementById('analyze-form').addEventListener('submit', function() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+            if (document.querySelector('.results-dashboard')) {
+                document.querySelector('.results-dashboard').classList.add('hidden');
+            }
+        });
+
+        // Hide loading indicator if page loads with results (e.g., after an API redirect)
+        window.onload = function() {
+            if (document.querySelector('.results-dashboard') && !document.querySelector('.results-dashboard').classList.contains('hidden')) {
+                document.getElementById('loading-indicator').classList.add('hidden');
+            }
+        };
+    </script>
+</body>
+</html>

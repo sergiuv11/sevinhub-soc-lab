@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SevinHub SOC Lab</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>SevinHub SOC Lab</h1>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <h3>Threat Level:</h3>
+                    <p id="threat-level">Loading...</p>
+                </div>
+                <div class="stat-item">
+                    <h3>SOC Score:</h3>
+                    <p id="soc-score">Loading...</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="module">
+                <h2>Global Cyber Threat Map</h2>
+                <div id="threat-map" style="height: 400px;"></div>
+            </section>
+
+            <section class="module">
+                <h2>SOC Analyst Agent</h2>
+                <div class="analyst-inputs">
+                    <input type="text" id="analyst-input" placeholder="Enter URL, IP, Domain, Email, or Log">
+                    <button id="analyze-button">Analyze</button>
+                </div>
+                <div id="analyst-results" class="results-box"></div>
+            </section>
+
+            <section class="module">
+                <h2>Incident Response Simulator</h2>
+                <div id="incident-list">Loading incidents...</div>
+                <div id="incident-response-area"></div>
+            </section>
+
+            <section class="module">
+                <h2>Attack Charts</h2>
+                <canvas id="attack-chart"></canvas>
+            </section>
+
+            <section class="module">
+                <h2>Case History</h2>
+                <table id="case-history-table">
+                    <thead>
+                        <tr>
+                            <th>Indicator</th>
+                            <th>Score</th>
+                            <th>Classification</th>
+                            <th>Timestamp</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Case history rows will be inserted here -->
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+    <script src="/static/analyst.js"></script>
+    <script src="/static/simulator.js"></script>
+    <script src="/static/map.js"></script>
+</body>
+</html>
